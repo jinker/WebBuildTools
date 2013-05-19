@@ -1,0 +1,75 @@
+<project name="closure-templates" default="all">
+	<import file="setup.xml" as="setup"/>
+	<!--绝对路径-->
+	<propertyregex property="dir"
+	               input="${file}"
+	               regexp="(.*)\\.*\.soy"
+	               select="\1"
+	               casesensitive="false"/>
+	<!--文件名称-->
+	<propertyregex property="fileName"
+	               input="${file}"
+	               regexp=".*\\(.*)\.soy"
+	               select="\1"
+	               casesensitive="false"/>
+
+	<macrodef name="closure-templates">
+		<attribute name="srcs" default="${file}"/>
+		<attribute name="outputPathFormat" default="${dir}\{INPUT_FILE_NAME_NO_EXT}.js"/>
+		<element name="extraflags" optional="yes"/>
+		<sequential>
+			<exec executable="java" failonerror="true" logError="true" resultproperty="templates-output">
+				<arg line='-jar ./lib/closure/closure-templates/SoyToJsSrcCompiler.jar'/>
+				<arg line='--srcs @{srcs}'/>
+				<arg line='--outputPathFormat @{outputPathFormat}'/>
+				<arg line='--shouldProvideRequireSoyNamespaces'/>
+				<extraflags/>
+			</exec>
+		</sequential>
+	</macrodef>
+
+	<!--编译成不依赖于google closure lib的js模版-->
+	<target name="none.goog">
+		<closure-templates srcs="${file}"></closure-templates>
+
+		<!--输出文件，绝对路径-->
+		<property name="outputFile" value="${dir}\${fileName}.js"/>
+
+		<!--将
+		goog.require('soy');
+		goog.require('soydata');
+		移除-->
+		<replaceregexp file="${outputFile}"
+		               match="goog\.require\('soy'\);"
+		               replace=""
+		               flags="g"/>
+		<replaceregexp file="${outputFile}"
+		               match="goog\.require\('soydata'\);"
+		               replace=""
+		               flags="g"/>
+
+		<replaceregexp file="${outputFile}"
+		               match="(goog\.provide\([^)]*\);)"
+		               replace="\1${line.separator}goog\.require\('goog.soyutils');"
+		               flags="g"/>
+	</target>
+
+	<!--编译成依赖于google closure lib的js模版-->
+	<target name="use.goog">
+		<property name="outputFile1" value="${dir}\${fileName}.goog.js"/>
+
+		<closure-templates
+				srcs="${file}"
+				outputPathFormat="${dir}\{INPUT_FILE_NAME_NO_EXT}.goog.js"/>
+
+		<replaceregexp file="${outputFile1}"
+		               match="cp\.tpl"
+		               replace="goog.cp.tpl"
+		               flags="g"/>
+	</target>
+
+	<target name="all">
+		<antcall target="use.goog"/>
+		<antcall target="none.goog"/>
+	</target>
+</project>

@@ -1,0 +1,97 @@
+<project name="svn.process">
+	<import file="setup.xml" as="setup"/>
+	<import file="svn.xml" as="svn"/>
+
+	<macrodef name="svn-process">
+		<attribute name="filesetId"/>
+		<attribute name="comment" default="修改"/>
+
+		<sequential>
+			<pathconvert property="includes.pattern" pathsep="," refid="@{filesetId}">
+				<globmapper from="${PROJECT_DIR}/*" to="*" handledirsep="true"/>
+			</pathconvert>
+			<property name="svn.file.names" value="${includes.pattern}"/>
+			<echo>${svn.file.names}</echo>
+			<fileset id="svn.files" dir="${PROJECT_DIR}" includes="${svn.file.names}">
+			</fileset>
+
+			<echo>update started...</echo>
+			<svn refid="svn.setting">
+				<!--<cleanup dir="${PROJECT_DIR}"/>-->
+				<update revision="HEAD">
+					<fileset dir="${PROJECT_DIR}" includes="${svn.file.names}">
+						<!--<svnModified refid="svn.setting"/>-->
+					</fileset>
+				</update>
+			</svn>
+			<echo>update finished...</echo>
+
+			<echo>add started...</echo>
+			<svn refid="svn.setting">
+				<add>
+					<fileset dir="${PROJECT_DIR}" includes="${svn.file.names}">
+						<svnUnversioned refid="svn.setting"/>
+					</fileset>
+				</add>
+			</svn>
+			<echo>add finished...</echo>
+
+			<echo>get modified files started...</echo>
+			<fileset id="modified.files" dir="${PROJECT_DIR}" includes="${svn.file.names}">
+				<svnModified refid="svn.setting"/>
+			</fileset>
+			<pathconvert refid="modified.files" property="modified.files.name" pathsep=",">
+				<globmapper from="${PROJECT_DIR}/*" to="*" handledirsep="true"/>
+			</pathconvert>
+			<echo>get modified files finished...</echo>
+
+			<echo>commit started...</echo>
+			<svn refid="svn.setting">
+				<commit message="@{comment}">
+					<fileset dir="${PROJECT_DIR}" includes="${svn.file.names}">
+					</fileset>
+				</commit>
+			</svn>
+			<echo>commit finished...</echo>
+
+			<!--显示文件svn版本号-->
+			<echo></echo>
+			<echo>Show file's revision number</echo>
+			<echo>Show all files:</echo>
+			<echo>number${tab}file name</echo>
+			<for param="file">
+				<path>
+					<fileset refid="svn.files"/>
+				</path>
+				<sequential>
+					<svn refid="svn.setting">
+						<status path="@{file}" lastChangedRevisionProperty="svn.revision"/>
+					</svn>
+					<echo>${svn.revision}${tab}@{file}</echo>
+				</sequential>
+			</for>
+
+			<echo></echo>
+			<echo>Show modified files:</echo>
+			<switch value="${modified.files.name}">
+				<case value="">
+					<echo message="No file modified."/>
+				</case>
+				<default>
+					<echo>number${tab}file name</echo>
+					<for param="file">
+						<path>
+							<fileset dir="${PROJECT_DIR}" includes="${modified.files.name}"/>
+						</path>
+						<sequential>
+							<svn refid="svn.setting">
+								<status path="@{file}" lastChangedRevisionProperty="svn.revision"/>
+							</svn>
+							<echo>${svn.revision}${tab}@{file}</echo>
+						</sequential>
+					</for>
+				</default>
+			</switch>
+		</sequential>
+	</macrodef>
+</project>

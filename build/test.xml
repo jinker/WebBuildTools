@@ -1,0 +1,46 @@
+<project name="test" default="test">
+	<import file="setup.xml" as="setup"/>
+
+	<target name="modify_build_version">
+		<property name="file_name" value="${file_name}"/>
+
+		<property name="js_script_reg"
+		          value="(&lt;script\s+type=['&#34;]text&#47;javascript['&#34;]\s+src=['&#34;].*?${file_name}\.c\.min\.js).*?(['&#34;])"/>
+
+		<tstamp>
+			<format property="stamp" pattern="yyyyMMddhhmm"/>
+		</tstamp>
+
+		<echo>The new version is : ${stamp}</echo>
+
+		<echo>Finding html...</echo>
+		<fileset id="fileset" dir="${PROJECT_DIR}" includes="**/*.shtml,**/*.html">
+			<containsregexp expression="${js_script_reg}"/>
+		</fileset>
+		<echo>Find html successful</echo>
+
+		<echo>Changing version...</echo>
+		<replaceregexp byline="true">
+			<regexp pattern="${js_script_reg}"/>
+			<substitution expression="\1?t=${stamp}\2"/>
+			<fileset refid="fileset"/>
+		</replaceregexp>
+		<echo>Change version successful</echo>
+
+		<echo>The target html files is/are the follow :</echo>
+		<for param="file">
+			<path>
+				<fileset refid="fileset"/>
+			</path>
+			<sequential>
+				<echo>@{file}</echo>
+			</sequential>
+		</for>
+	</target>
+
+	<target name="test">
+		<antcall target="modify_build_version">
+			<param name="file_name" value="cp_buy_jczq_all"/>
+		</antcall>
+	</target>
+</project>

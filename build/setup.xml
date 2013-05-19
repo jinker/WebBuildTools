@@ -1,0 +1,31 @@
+<project name="setup" basedir=".">
+	<taskdef resource="net/sf/antcontrib/antlib.xml">
+		<classpath>
+			<pathelement location="${basedir}\lib\Ant-Contrib\ant-contrib-1.0b2-bin\lib\ant-contrib.jar"/>
+		</classpath>
+	</taskdef>
+
+	<property name="tab" value="&#x0009;"/>
+	<!-- Setup -->
+	<property name="WEB_URL" value="http://888.gtimg.com" description="Web url"/>
+	<propertyregex property="PROJECT_DIR"
+	               input="${basedir}"
+	               regexp="(.*)\\build"
+	               select="\1"
+	               casesensitive="false"/>
+	<property name="RELATIVE_PATH" value="static/v1.0" description="File relative path"/>
+	<property name="URL_RELATIVE_PATH" value="static/v1.0" description="URL relative path"/>
+
+	<property name="SRC_DIR" value="${PROJECT_DIR}/${RELATIVE_PATH}" description="Source folder"/>
+	<property name="SRC_JS_DIR" value="${SRC_DIR}/i/js" description="JavaScript source folder"/>
+
+	<property name="DIST_DIR" value="${PROJECT_DIR}/${RELATIVE_PATH}" description="Output folder for build targets"/>
+	<property name="DIST_JS_DIR" value="${DIST_DIR}/i/js" description="Output folder for JavaScript files"/>
+
+	<property name="LIB_DIR" value="${PROJECT_DIR}/build/lib" description="Lib directory"/>
+
+	<!--yui compressor-->
+	<property name="YUI_COMPRESSOR_DIR" value="${LIB_DIR}/YUICompressor/yuicompressor-2.4.7/build"
+	          description="Files needed to build"/>
+	<property name="YUI" value="${YUI_COMPRESSOR_DIR}/yuicompressor-2.4.7.jar" description="YUICompressor"/>
+</project>

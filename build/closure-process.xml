@@ -1,0 +1,233 @@
+<project name="closure-process">
+	<import file="svn-pro.xml" as="svn-pro"/>
+	<import file="modify-version.xml" as="modify-version"/>
+	<!-- Set based on your folder structure -->
+
+	<propertyregex property="project.dir" input="${basedir}/../" regexp='\\' replace="/"/>
+
+	<property name="closure.dir" value="./lib/closure"/>
+
+	<propertyregex property="dir"
+	               input="${basedir}"
+	               regexp="(.*)\\build"
+	               select="\1"
+	               casesensitive="false"/>
+	<!-- My folder structure within the closure folder:
+		  closure/closure-compiler  (svn checkout of http://closure-compiler.googlecode.com/svn/trunk/)
+		  closure/closure-library   (svn checkout of http://closure-library.googlecode.com/svn/trunk/)
+		  closure/closure-templates (svn checkout of http://closure-templates.googlecode.com/svn/trunk/) -->
+
+	<property name="closure-library.dir" value="${closure.dir}/closure-library"/>
+	<property name="compiler.jar" value="${closure.dir}/closure-compiler/compiler.jar"/>
+
+	<property name="YUI_COMPRESSOR_DIR" value="./lib/YUICompressor/yuicompressor-2.4.7/build"
+	          description="Files needed to build"/>
+	<property name="YUI" value="${YUI_COMPRESSOR_DIR}/yuicompressor-2.4.7.jar" description="YUICompressor"/>
+
+	<macrodef name="closure-builder">
+		<attribute name="root"/>
+		<element name="namespaces" optional="no"/>
+		<attribute name="outputfile"/>
+		<attribute name="outputMode" default="compiled"/>
+		<attribute name="compilationlevel" default="ADVANCED_OPTIMIZATIONS"/>
+		<element name="extraflags" optional="yes"/>
+		<sequential>
+			<exec executable="python.exe" failonerror="true" logError="true" resultproperty="closure.output">
+				<arg value="${closure.dir}/bin/build/closurebuilder.py"/>
+				<!--<arg line='-root="${closure-library.dir}"'/>-->
+				<arg line='--root="@{root}"'/>
+				<namespaces/>
+				<arg line='--output_mode=@{outputMode}'/>
+				<arg line='--compiler_jar=${compiler.jar}'/>
+				<arg line='--output_file=@{outputfile}'/>
+				<arg line='--compiler_flags="--compilation_level=@{compilationlevel}"'/>
+				<!--<arg line='-compiler_flags="-js=${closure-library.dir}/deps.js"'/>-->
+				<arg line='--compiler_flags="--charset=gb2312"'/>
+				<arg line='--compiler_flags="--externs=${project.dir}/build/lib/closure/closure-compiler/externs/jquery-1.7.js"'/>
+				<arg line='--compiler_flags="--externs=${project.dir}/build/lib/closure/closure-compiler/externs/caipiao.js"'/>
+				<arg line='--compiler_flags="--externs=${project.dir}/build/lib/closure/closure-compiler/externs/cp_global.js"'/>
+				<extraflags/>
+			</exec>
+		</sequential>
+	</macrodef>
+
+	<macrodef name="closure-calcdeps">
+		<attribute name="outputfile" default="${project.dir}/build/lib/closure/deps/deps.js"/>
+		<element name="extraflags" optional="yes"/>
+		<sequential>
+			<exec executable="python.exe" failonerror="true" logError="true" resultproperty="closure-calcdeps.output">
+				<arg value="${closure.dir}/bin/build/depswriter.py"/>
+				<arg line='--output_file @{outputfile}'/>
+				<arg line='--root_with_prefix="${project.dir}||../../../../"'/>
+				<extraflags/>
+			</exec>
+		</sequential>
+	</macrodef>
+
+	<target name="analyze" description="Analyze file,and get namespace and output file">
+		<loadfile property="namespace" srcfile="${file}">
+			<filterchain>
+				<linecontainsregexp>
+					<regexp pattern="goog.provide"/>
+				</linecontainsregexp>
+				<tokenfilter>
+					<replaceregex replace='\1'
+					              pattern='^goog.provide\("(.*)"\);$'/>
+				</tokenfilter>
+				<striplinebreaks/>
+			</filterchain>
+		</loadfile>
+		<echo message="Start compile namespace : ${namespace}"/>
+		<property name="com.file" value="${PROJECT_DIR}\${dir}\${filename}.c.js"/>
+		<property name="output.file" value="${PROJECT_DIR}\${dir}\${filename}.c.min.js"/>
+	</target>
+
+	<target name="js.compile" depends="analyze" description="Compile js file">
+		<closure-builder
+				root='${basedir}/../'
+				outputfile="${com.file}"
+				compilationlevel="WHITESPACE_ONLY"
+				>
+			<namespaces>
+				<arg line='--namespace=${namespace}'/>
+			</namespaces>
+			<extraflags>
+				<!-- Optional.  This turns what would be warnings into errors for type safety. -->
+				<!--<arg line='-compiler_flags="-jscomp_error=checkTypes"'/>-->
+			</extraflags>
+		</closure-builder>
+
+		<antcall target="subsequent.processing"/>
+		<antcall target="js.min"/>
+
+		<antcall target="modify_build_version">
+			<param name="file_name" value="${filename}"/>
+		</antcall>
+	</target>
+
+	<target name="js.compileAdvanced" depends="analyze" description="Compile js file">
+		<closure-builder
+				root='${basedir}/../'
+				outputfile="${com.file}"
+				compilationlevel="ADVANCED_OPTIMIZATIONS"
+				>
+			<namespaces>
+				<arg line='--namespace=${namespace}'/>
+			</namespaces>
+			<extraflags>
+				<arg line='--compiler_flags="--output_wrapper=(function() {%output%})();"'/>
+			</extraflags>
+
+		</closure-builder>
+
+		<antcall target="subsequent.processing"/>
+		<antcall target="js.min"/>
+
+		<antcall target="modify_build_version">
+			<param name="file_name" value="${filename}"/>
+		</antcall>
+	</target>
+
+	<target name="subsequent.processing">
+		<!--在compilation_level=WHITESPACE_ONLY 时加上这一流程-->
+		<replaceregexp file="${com.file}"
+		               match="var COMPILED=false;[\s\S]*goog\.scope=function\(fn\)\{fn\.call\(goog\.global\)\};"
+		               replace=""/>
+		<!--将"goog.require(...);"移除-->
+		<replaceregexp file="${com.file}"
+		               match="goog\.require\([^)]*\);"
+		               replace=""
+		               flags="g"/>
+		<!--将"goog.provide(...);"替换成"CP.util.namespace(...);"-->
+		<replaceregexp file="${com.file}"
+		               match="goog\.provide"
+		               replace="CP\.util\.namespace"
+		               flags="g"/>
+
+		<!--避免CP命名覆盖问题-->
+		<replaceregexp file="${com.file}"
+		               match="var CP=\{(\w+):(\{[^}]*\})\}"
+		               replace="var CP=CP||{};CP.\1={}"
+		               flags="g"/>
+	</target>
+
+	<target name="js.min" description="Minimize JavaScript files">
+		<echo message="Minimize ${com.file}"/>
+		<apply executable="java" parallel="false" verbose="true" dest="${PROJECT_DIR}/${dir}">
+			<fileset file="${com.file}"/>
+			<arg line="-jar"/>
+			<arg path="${YUI}"/>
+			<arg value="--charset"/>
+			<arg value="gb2312"/>
+			<arg value="-o"/>
+			<targetfile/>
+			<mapper type="glob" from="*.js" to="*.min.js"/>
+		</apply>
+		<!--删除中间编译合并js文件-->
+		<delete file="${com.file}"/>
+		<echo message="${output.file} built."/>
+	</target>
+
+	<property name="list.temp.file" value="${PROJECT_DIR}/${dir}/${filename}.list.txt"/>
+	<!--列出所有相关文件，并更新svn-->
+	<target name="list" depends="analyze" description="List all the files which were linked,and update svn">
+		<closure-builder
+				root='${basedir}/../'
+				outputfile="${list.temp.file}"
+				outputMode="list"
+				>
+			<namespaces>
+				<arg line='--namespace=${namespace}'/>
+			</namespaces>
+		</closure-builder>
+
+		<loadfile property="list.text" srcfile="${list.temp.file}">
+			<filterchain>
+				<tokenfilter>
+					<!--<replacestring from="\" to="/"/>-->
+				</tokenfilter>
+				<tokenfilter>
+					<replacestring from="${PROJECT_DIR}\" to=","/>
+				</tokenfilter>
+				<striplinebreaks/>
+			</filterchain>
+		</loadfile>
+		<delete file="${list.temp.file}"/>
+
+		<fileset id="list.set" dir="${PROJECT_DIR}" includes="${list.text},${dir}/${filename}.c.min.js"></fileset>
+
+		<svn-process filesetId="list.set"/>
+	</target>
+
+	<!--列出所有相关文件，不更新svn-->
+	<target name="list.noSvn" depends="analyze" description="List all the files which were linked.">
+		<closure-builder
+				root='${basedir}/../'
+				outputfile="${list.temp.file}"
+				outputMode="list"
+				>
+			<namespaces>
+				<arg line='--namespace=${namespace}'/>
+			</namespaces>
+		</closure-builder>
+
+		<loadfile property="list.text" srcfile="${list.temp.file}"/>
+		<delete file="${list.temp.file}"/>
+
+		<echo>${list.text}</echo>
+	</target>
+
+	<target name="calcdeps" depends="analyze">
+		<closure-calcdeps
+				outputfile="${project.dir}/build/lib/closure/deps/${namespace}.deps.js"
+				/>
+	</target>
+
+	<target name="all" depends="js.compile,js.min,list"></target>
+
+	<target name="all.advanced" depends="js.compileAdvanced,list">
+		<antcall target="modify_build_version">
+			<param name="file_name" value="${filename}"/>
+		</antcall>
+	</target>
+</project>

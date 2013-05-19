@@ -1,0 +1,60 @@
+<project name="modify-version">
+	<import file="setup.xml" as="setup"/>
+
+	<macrodef name="print.time1">
+		<sequential>
+			<tstamp>
+				<format property="current.time" pattern="MM/dd/yyyy hh:mm:ss"/>
+			</tstamp>
+			<!--<echo message="${current.time}"/>-->
+		</sequential>
+	</macrodef>
+
+	<target name="print.time">
+		<print.time1/>
+		<echo message="${current.time}"/>
+	</target>
+
+	<target name="modify_build_version">
+		<property name="file_name" value="${file_name}"/>
+
+		<property name="js_script_reg"
+		          value="(&lt;script\s+type=['&#34;]text&#47;javascript['&#34;]\s+src=['&#34;].*?${file_name}\.c\.min\.js).*?(['&#34;])"/>
+
+		<tstamp>
+			<format property="stamp" pattern="yyyyMMddhhmm"/>
+		</tstamp>
+
+		<echo>The new version is : ${stamp}</echo>
+
+		<echo>Finding html...</echo>
+		<antcall target="print.time"/>
+		<fileset id="fileset" dir="${PROJECT_DIR}" includes="**/*.shtml,**/*.html">
+			<containsregexp expression="${js_script_reg}"/>
+		</fileset>
+		<antcall target="print.time"/>
+		<echo>Find html successful</echo>
+
+		<echo>Changing version...</echo>
+		<antcall target="print.time"/>
+		<replaceregexp byline="true">
+			<regexp pattern="${js_script_reg}"/>
+			<substitution expression="\1?t=${stamp}\2"/>
+			<fileset refid="fileset"/>
+		</replaceregexp>
+		<antcall target="print.time"/>
+		<echo>Change version successful</echo>
+
+		<echo>The target html files is/are the follow :</echo>
+		<antcall target="print.time"/>
+		<for param="file">
+			<path>
+				<fileset refid="fileset"/>
+			</path>
+			<sequential>
+				<echo>@{file}</echo>
+			</sequential>
+		</for>
+		<antcall target="print.time"/>
+	</target>
+</project>

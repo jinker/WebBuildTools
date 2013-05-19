@@ -1,0 +1,120 @@
+<project name="process" basedir=".">
+	<import file="svn-pro.xml" as="svn-pro"/>
+
+	<!-- Files path for distribution -->
+	<property name="JS" value="${DIST_JS_DIR}/${JS_NAME}.c.js"/>
+	<property name="JS_MIN" value="${DIST_JS_DIR}/${JS_NAME}.c.min.js"/>
+	<!-- Targets -->
+	<target name="html" description="Copy HTML files to the output folder">
+		<!--处理js文件路径-->
+		<pathconvert pathsep="${line.separator}"
+		             property="compiledContents"
+		             refid="js.files">
+			<chainedmapper>
+				<filtermapper>
+					<replacestring from="\" to="/"/>
+					<replacestring from="${PROJECT_DIR}/" to=""/>
+					<!--财付通链接映射处理 将“static/cftcaipiao/v1.0”置换成“gtimg”-->
+					<replacestring from="static/cftcaipiao/v1.0" to="gtimg"/>
+				</filtermapper>
+				<mapper type="regexp" from="(.*)"
+				        to="&lt;script type='text/javascript' src='${WEB_URL}/\1'&gt;&lt;/script&gt;"/>
+			</chainedmapper>
+		</pathconvert>
+
+
+		<property name="jsScriptHtml"
+		          value="&lt;!--#if expr='${QUERY_STRING}=/jsMode=dev/' --&gt;${line.separator}${compiledContents}${line.separator}&lt;!--#elif expr='${HTTP_HOST}=/^dev./' --&gt;${line.separator}${compiledContents}${line.separator}&lt;!--#else--&gt;${line.separator}&lt;script type='text/javascript' src='${WEB_URL}/${URL_RELATIVE_PATH}/i/js/${JS_NAME}.c.min.js'&gt;&lt;/script&gt;${line.separator}&lt;!--#endif--&gt;">
+		</property>
+
+		<echo>Compile html:${HTML_PATH}</echo>
+		<!--替换初始标签"jsFiles"-->
+		<replaceregexp>
+			<regexp pattern="&lt;!--jsFiles--&gt;"/>
+			<substitution expression="${jsScriptHtml}"/>
+			<fileset file="${PROJECT_DIR}/${HTML_PATH}"/>
+		</replaceregexp>
+		<!--替换最新标签-->
+		<replaceregexp byline="false" flags="gis">
+			<regexp pattern="&lt;!--#if expr=&apos;\$\{QUERY_STRING\}=/jsMode=dev/&apos; --&gt;(.+?)&lt;!--#endif--&gt;"/>
+			<substitution expression="${jsScriptHtml}"/>
+			<fileset file="${PROJECT_DIR}/${HTML_PATH}"/>
+		</replaceregexp>
+	</target>
+
+	<target name="js" description="Concatenate JavaScript source files">
+		<echo message="Building ${JS}"/>
+		<concat destfile="${JS}">
+			<filelist refid="js.files"/>
+		</concat>
+		<echo message="${JS} built."/>
+	</target>
+
+	<taskdef name="jscomp" classname="com.google.javascript.jscomp.ant.CompileTask"
+	         classpath="./lib/closure/closure-compiler/compiler.jar"/>
+
+	<target name="jsMin1" depends="js" description="Minimize JavaScript files by closure">
+		<delete file="${PROJECT_DIR}/${RELATIVE_PATH}/i/js/${JS_NAME}.c.min.js"/>
+		<jscomp compilationLevel="simple" warning="verbose"
+		        debug="false" output="${JS_MIN}">
+			<sources dir="${PROJECT_DIR}">
+				<file name="${RELATIVE_PATH}/i/js/${JS_NAME}.c.js"/>
+			</sources>
+		</jscomp>
+	</target>
+
+	<target name="jsMin" depends="js" description="Minimize JavaScript files">
+		<echo message="Building ${JS_MIN}"/>
+		<!--删除旧文件-->
+		<delete file="${PROJECT_DIR}/${RELATIVE_PATH}/i/js/${JS_NAME}.c.min.js"/>
+		<apply executable="java" parallel="false" verbose="true" dest="${DIST_JS_DIR}">
+			<fileset dir="${DIST_JS_DIR}">
+				<include name="${JS_NAME}.c.js"/>
+			</fileset>
+			<arg line="-jar"/>
+			<arg path="${YUI}"/>
+			<arg value="--charset"/>
+			<arg value="gb2312"/>
+			<arg value="-o"/>
+			<targetfile/>
+			<mapper type="glob" from="*.js" to="*.min.js"/>
+		</apply>
+		<!--删除中间编译合并js文件-->
+		<delete file="${JS}"/>
+		<echo message="${JS_MIN} built."/>
+	</target>
+
+	<fileset dir="${PROJECT_DIR}" id="build.files">
+		<include name="${RELATIVE_PATH}/i/js/${JS_NAME}.c.js"/>
+		<include name="${RELATIVE_PATH}/i/js/${JS_NAME}.c.min.js"/>
+		<include name="${HTML_PATH}"/>
+	</fileset>
+
+	<pathconvert property="includespattern" pathsep="," refid="build.files">
+		<globmapper from="${PROJECT_DIR}/*" to="*" handledirsep="true"/>
+	</pathconvert>
+	<pathconvert property="includespattern1" pathsep="," refid="js.files">
+		<globmapper from="${PROJECT_DIR}/*" to="*" handledirsep="true"/>
+	</pathconvert>
+	<property name="svn.file.names"
+	          value="${includespattern},${includespattern1}"/>
+	<fileset id="svn.files" dir="${PROJECT_DIR}" includes="${svn.file.names}">
+	</fileset>
+
+	<!--svn 操作-->
+	<target name="svn">
+		<svn-process
+				filesetId='build.files'
+				comment="test"
+				>
+		</svn-process>
+	</target>
+
+	<target name="build" depends="js,jsMin,html">
+		<echo message="Build complete."/>
+	</target>
+
+	<target name="all" depends="js,jsMin,html,svn">
+		<echo message="Build complete."/>
+	</target>
+</project>

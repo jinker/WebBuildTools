@@ -1,0 +1,52 @@
+<project name="yui-process" basedir="." default="min">
+	<import file="setup.xml" as="setup"/>
+
+	<macrodef name="compressor">
+		<attribute name="inputfile"/>
+		<attribute name="outputfile" default="${targetFile}"/>
+		<element name="extraflags" optional="yes"/>
+		<sequential>
+			<exec executable="java" failonerror="true" logError="true">
+				<arg line="-jar ${YUI}"/>
+				<arg line="@{inputfile}"/>
+				<arg line="--charset gb2312"/>
+				<arg line='-o @{outputfile}'/>
+				<extraflags/>
+			</exec>
+		</sequential>
+	</macrodef>
+
+	<property name="targetFile" value="${PROJECT_DIR}/${dir}/${filename}.min.${fileExt}"/>
+
+	<target name="jsMin" description="Minimize JavaScript files">
+		<!--删除已存在文件-->
+		<delete file="${targetFile}"/>
+		<echo message="Compress ..., ${file}"/>
+		<compressor inputfile="${file}" outputfile="${targetFile}">
+			<extraflags>
+				<arg line='--type js'/>
+			</extraflags>
+		</compressor>
+		<echo message="Compress successful, ${targetFile}"/>
+	</target>
+
+	<target name="cssMin" description="Minimize css files">
+		<!--删除已存在文件-->
+		<delete file="${targetFile}"/>
+		<echo message="Compress ..., ${file}"/>
+		<compressor inputfile="${file}" outputfile="${targetFile}">
+			<extraflags>
+				<arg line='--type css'/>
+			</extraflags>
+		</compressor>
+		<echo message="Compress successful, ${targetFile}"/>
+	</target>
+
+	<target name="min" description="Minimize files">
+		<!--删除已存在文件-->
+		<delete file="${targetFile}"/>
+		<echo message="Compress ..., ${file}"/>
+		<compressor inputfile="${file}" outputfile="${targetFile}"/>
+		<echo message="Compress successful, ${targetFile}"/>
+	</target>
+</project>
