@@ -1,0 +1,7 @@
+load:
+  - ../../../build/lib/closure/closure-library/base.js
+  - ../../../js/m1.js
+  - ../../../js/m2.js
+  - ../../../js/app.js
+test:
+  - ../tests/appTest.js

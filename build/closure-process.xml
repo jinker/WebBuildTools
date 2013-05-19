@@ -51,6 +51,24 @@
 		</sequential>
 	</macrodef>
 
+	<macrodef name="closure-builder-jsTestConfig">
+		<attribute name="root"/>
+		<element name="namespaces" optional="no"/>
+		<element name="extraflags" optional="yes"/>
+		<sequential>
+			<exec executable="python.exe" failonerror="true" logError="true">
+				<arg value="${closure.dir}/bin/build/closurebuilder.py"/>
+				<arg line='--root="@{root}"'/>
+				<namespaces/>
+				<arg line='--output_mode=list'/>
+				<arg line='--compiler_jar=${compiler.jar}'/>
+				<arg line='--output_file=manifest.txt'/>
+				<arg line='--compiler_flags="--output_manifest manifest1.txt"'/>
+				<extraflags/>
+			</exec>
+		</sequential>
+	</macrodef>
+
 	<macrodef name="closure-calcdeps">
 		<attribute name="outputfile" default="${project.dir}/build/lib/closure/deps/deps.js"/>
 		<element name="extraflags" optional="yes"/>
@@ -126,6 +144,16 @@
 		<antcall target="modify_build_version">
 			<param name="file_name" value="${filename}"/>
 		</antcall>
+	</target>
+
+	<target name="genJsTestDriverConfig" depends="analyze" description="Compile js file">
+		<closure-builder-jsTestConfig
+				root='${basedir}/../'
+				>
+			<namespaces>
+				<arg line='--namespace=${namespace}'/>
+			</namespaces>
+		</closure-builder-jsTestConfig>
 	</target>
 
 	<target name="subsequent.processing">
