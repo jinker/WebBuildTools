@@ -4,4 +4,4 @@ load:
   - ../../../js/m2.js
   - ../../../js/app.js
 test:
-  - ../tests/appTest.js
+  - ../../../build/jsTestDriver/tests/appTest.js

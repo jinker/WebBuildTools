@@ -51,24 +51,6 @@
 		</sequential>
 	</macrodef>
 
-	<macrodef name="closure-builder-jsTestConfig">
-		<attribute name="root"/>
-		<element name="namespaces" optional="no"/>
-		<element name="extraflags" optional="yes"/>
-		<sequential>
-			<exec executable="python.exe" failonerror="true" logError="true">
-				<arg value="${closure.dir}/bin/build/closurebuilder.py"/>
-				<arg line='--root="@{root}"'/>
-				<namespaces/>
-				<arg line='--output_mode=list'/>
-				<arg line='--compiler_jar=${compiler.jar}'/>
-				<arg line='--output_file=manifest.txt'/>
-				<arg line='--compiler_flags="--output_manifest manifest1.txt"'/>
-				<extraflags/>
-			</exec>
-		</sequential>
-	</macrodef>
-
 	<macrodef name="closure-calcdeps">
 		<attribute name="outputfile" default="${project.dir}/build/lib/closure/deps/deps.js"/>
 		<element name="extraflags" optional="yes"/>
@@ -146,14 +128,58 @@
 		</antcall>
 	</target>
 
-	<target name="genJsTestDriverConfig" depends="analyze" description="Compile js file">
+	<macrodef name="closure-builder-jsTestConfig">
+		<attribute name="root"/>
+		<element name="namespaces" optional="no"/>
+		<attribute name="outputfile" default="manifest.txt"/>
+		<element name="extraflags" optional="yes"/>
+		<sequential>
+			<exec executable="python.exe" failonerror="true" logError="true">
+				<arg value="${closure.dir}/bin/build/closurebuilder.py"/>
+				<arg line='--root="@{root}"'/>
+				<namespaces/>
+				<arg line='--output_mode=list'/>
+				<arg line='--compiler_jar=${compiler.jar}'/>
+				<arg line='--output_file=@{outputfile}'/>
+				<extraflags/>
+			</exec>
+		</sequential>
+	</macrodef>
+
+	<target name="genJsTestDriverConfig" description="generate jsTestDriver config file">
+		<loadfile property="testModule" srcfile="${file}">
+			<filterchain>
+				<linecontainsregexp>
+					<regexp pattern="//modules:"/>
+				</linecontainsregexp>
+				<tokenfilter>
+					<replaceregex replace='\1'
+					              pattern='^//modules:(.+)$'/>
+				</tokenfilter>
+				<striplinebreaks/>
+			</filterchain>
+		</loadfile>
+		<echo message="Start generate config file for modules : ${testModule}"/>
+
+		<property name="jsTestDriverConfigFile" value="./jsTestDriver/configs/${filename}.jstd"/>
+
 		<closure-builder-jsTestConfig
 				root='${basedir}/../'
+				outputfile="${jsTestDriverConfigFile}"
 				>
 			<namespaces>
-				<arg line='--namespace=${namespace}'/>
+				<arg line='--namespace=${testModule}'/>
 			</namespaces>
 		</closure-builder-jsTestConfig>
+
+		<echo>${PROJECT_DIR}</echo>
+
+		<loadfile property="configFileContent" srcfile="${jsTestDriverConfigFile}"/>
+
+		<echo message="load:${line.separator}${configFileContent}test:${line.separator}${file}"
+		      file="${jsTestDriverConfigFile}"/>
+		<replace file="${jsTestDriverConfigFile}" token="${PROJECT_DIR}" value="  - ../../.."/>
+		<replace file="${jsTestDriverConfigFile}" token="\" value="/"/>
 	</target>
 
 	<target name="subsequent.processing">
