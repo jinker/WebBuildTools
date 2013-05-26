@@ -172,14 +172,14 @@
 			</namespaces>
 		</closure-builder-jsTestConfig>
 
-		<echo>${PROJECT_DIR}</echo>
-
 		<loadfile property="configFileContent" srcfile="${jsTestDriverConfigFile}"/>
 
 		<echo message="load:${line.separator}${configFileContent}test:${line.separator}${file}"
 		      file="${jsTestDriverConfigFile}"/>
 		<replace file="${jsTestDriverConfigFile}" token="${PROJECT_DIR}" value="  - ../../.."/>
 		<replace file="${jsTestDriverConfigFile}" token="\" value="/"/>
+
+		<echo message="Generate config file : ${PROJECT_DIR}/build/${jsTestDriverConfigFile}"/>
 	</target>
 
 	<target name="subsequent.processing">
